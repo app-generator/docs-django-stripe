@@ -1,0 +1,134 @@
+{% load custom_filter %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products</title>
+</head>
+<body>
+    <h3>Product from DB</h3>
+    {% if products %}
+    <div style="display: flex; gap: 20px;">
+        {% for product in products %}
+            <div>
+                <img style="width: 200px;" src="{{ product.image.url }}" alt="">
+                <h5>{{ product.name }}</h5>
+                <div>
+                    <label for="">Default</label>
+                    <input type="radio" name="color-{{ product.id }}" value="0" id="default-{{ product.id }}" checked>
+                </div>
+                {% for color in product.colors.all %}
+                    <div>
+                        <label for="">{{ color.name }}</label>
+                        <input type="radio" name="color-{{ product.id }}" value="{{ color.price }}" id="color-{{ product.id }}-{{ color.id }}">
+                    </div>
+                {% endfor %}
+                <p>Total Price: $<span id="total-price-{{ product.id }}">{{ product.price }}</span></p>
+                <button id="buy-button-{{ product.id }}" data-id="{{ product.id }}">Buy Now</button>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No products found</p>
+    {% endif %}
+
+    {% if one_off_products %}
+    <h3>Product from Stripe</h3>
+    <div style="display: flex; gap: 20px;">
+        {% for product in one_off_products %}
+            <div>
+                {% if product.images %}
+                <img style="width: 200px;" src="{{ product.images.0 }}" alt="">
+                {% endif %}
+                <h5>{{ product.name }}</h5>
+                <p>Total Price: $<span id="total-price-{{ product.id }}">{{ product.default_price.unit_amount|convert_stripe_price }}</span></p>
+                <button id="buy-button-{{ product.id }}" data-id="{{ product.id }}">Buy Now</button>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No products found</p>
+    {% endif %}
+
+    {% if recurring_products %}    
+    <h3>Subscription</h3>
+    <div style="display: flex; gap: 20px;">
+        {% for product in recurring_products %}
+            <div>
+                {% if product.images %}
+                <img style="width: 200px;" src="{{ product.images.0 }}" alt="">
+                {% endif %}
+                <h5>{{ product.name }}</h5>
+                <p>
+                    $<span id="total-price-{{ product.id }}">
+                    {{ product.default_price.unit_amount|convert_stripe_price }}
+                    </span>
+                    / {{ product.default_price.recurring.interval }}
+                </p>
+                <button id="buy-button-{{ product.id }}" data-id="{{ product.id }}">Buy Now</button>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No products found</p>
+    {% endif %}
+
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+        const stripe = Stripe("{{ STRIPE_PUBLISHABLE_KEY }}");
+    
+        document.querySelectorAll("button[id^='buy-button-']").forEach(button => {
+            button.addEventListener('click', function () {
+                const productId = this.dataset.id;
+                const totalPriceElement = document.getElementById(`total-price-${productId}`);
+                
+                const selectedPrice = parseFloat(totalPriceElement.textContent);
+
+                fetch(`/create-checkout-session/${productId}/`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        price: selectedPrice
+                    }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            stripe.redirectToCheckout({ sessionId: data.id });
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            });
+        });
+    </script>
+
+    <script>
+        document.querySelectorAll("div").forEach(productDiv => {
+            const buyButton = productDiv.querySelector("button");
+            if (buyButton) {
+                const productId = buyButton.dataset.id;
+                const totalPriceElement = document.getElementById(`total-price-${productId}`);
+        
+                if (totalPriceElement) {
+                    const basePrice = parseFloat(totalPriceElement.textContent);
+        
+                    productDiv.querySelectorAll(`input[name="color-${productId}"]`).forEach(radio => {
+                        radio.addEventListener("change", function () {
+                            const colorPrice = parseFloat(this.value);
+                            const totalPrice = basePrice + colorPrice;
+        
+                            totalPriceElement.textContent = totalPrice.toFixed(2);
+                        });
+                    });
+                }
+            }
+        });
+          
+    </script>
+</body>
+</html>
