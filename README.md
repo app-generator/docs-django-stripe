@@ -77,3 +77,26 @@ At this point, the app runs at `http://127.0.0.1:8000/`.
 
 ---
 **[Django Core](https://github.com/app-generator/core-django)** - Minimal **Django** core provided by **[AppSeed](https://appseed.us/)**
+
+
+# Stripe
+
+Add the following credentials to `.env` file
+```bash
+STRIPE_PUBLISHABLE_KEY= 
+STRIPE_SECRET_KEY=
+```
+
+## Create product (local)
+
+- Login to django [admin panel](http://127.0.0.1:8000/admin/).
+- Create product from [here](http://127.0.0.1:8000/admin/home/product/).
+    - For dynamic pricing create [color](http://127.0.0.1:8000/admin/home/color/).
+    - Attach the colors with product.
+
+## Create product (stripe)
+
+- Login to [stripe dashboard](https://dashboard.stripe.com/login)
+- Go to this [link](https://dashboard.stripe.com/test/products).
+    - Choose `one-off` one time payment.
+    - Choose `recurring` for subscription.
